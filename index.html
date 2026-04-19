@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>シナリオ本棚</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1a1008;
+    --wood-dark: #2d1a08;
+    --wood-mid: #3d2510;
+    --wood-light: #5c3a1e;
+    --shelf: #7a4f2c;
+    --shelf-top: #9b6b3a;
+    --text: #f0e6d3;
+    --text-dim: #a08060;
+    --accent: #d4a054;
+    --accent-glow: rgba(212,160,84,0.3);
+    --input-bg: rgba(255,255,255,0.07);
+    --modal-bg: rgba(10,5,0,0.92);
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Segoe UI', 'Yu Gothic', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Wood grain background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 60px,
+        rgba(0,0,0,0.08) 60px,
+        rgba(0,0,0,0.08) 61px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 4px,
+        rgba(255,200,100,0.015) 4px,
+        rgba(255,200,100,0.015) 5px
+      ),
+      linear-gradient(
+        170deg,
+        #1a1008 0%,
+        #251508 30%,
+        #1e1006 60%,
+        #2d1a08 100%
+      );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(180deg, #1a0e04 0%, rgba(26,14,4,0.97) 100%);
+    border-bottom: 2px solid var(--shelf);
+    box-shadow: 0 2px 20px rgba(0,0,0,0.8), 0 4px 40px rgba(212,160,84,0.1);
+    padding: 14px 20px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .header-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--accent-glow);
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .header-title span { font-size: 1.1rem; opacity: 0.7; }
+
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+    max-width: 360px;
+  }
+
+  .search-wrap svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 8px 12px 8px 34px;
+    background: var(--input-bg);
+    border: 1px solid rgba(122,79,44,0.5);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .search-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .search-input::placeholder { color: var(--text-dim); }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #c47f28, #e8a840);
+    color: #1a0e04;
+    box-shadow: 0 2px 10px rgba(212,160,84,0.4);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(212,160,84,0.6);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .btn-ghost:hover { background: var(--input-bg); color: var(--text); }
+
+  .header-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    align-items: center;
+  }
+
+  .tag-filter {
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .tag-filter:hover, .tag-filter.active {
+    color: #fff;
+    border-color: currentColor;
+  }
+
+  .tag-filter.active { font-weight: 600; }
+
+  .tag-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 9px;
+    font-size: 0.7rem;
+    margin-left: 4px;
+    padding: 0 4px;
+  }
+
+  /* ===== DROP ZONE ===== */
+  .drop-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(212,160,84,0.15);
+    border: 4px dashed var(--accent);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .drop-overlay.active { display: flex; }
+
+  .drop-overlay-icon { font-size: 5rem; animation: bounce 0.6s ease infinite alternate; }
+  .drop-overlay-text { font-size: 1.5rem; color: var(--accent); font-weight: 700; }
+
+  @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+
+  /* ===== BOOKSHELF ===== */
+  .shelf-area {
+    position: relative;
+    z-index: 1;
+    padding: 24px 20px 60px;
+  }
+
+  .shelf-stats {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+  }
+
+  .shelf-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    gap: 16px;
+    color: var(--text-dim);
+  }
+
+  .shelf-empty-icon { font-size: 4rem; opacity: 0.4; }
+  .shelf-empty-title { font-size: 1.2rem; font-weight: 600; }
+  .shelf-empty-sub { font-size: 0.9rem; }
+
+  .shelf-row {
+    margin-bottom: 0;
+    position: relative;
+  }
+
+  .shelf-books {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 2px;
+    min-height: 180px;
+    padding: 20px 16px 0;
+    background:
+      linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.1) 100%);
+  }
+
+  /* Shelf plank */
+  .shelf-plank {
+    height: 18px;
+    background: linear-gradient(180deg, var(--shelf-top) 0%, var(--shelf) 40%, #5c3a1e 100%);
+    border-radius: 2px;
+    box-shadow:
+      0 4px 12px rgba(0,0,0,0.6),
+      inset 0 1px 0 rgba(255,255,255,0.1);
+    margin-bottom: 24px;
+    position: relative;
+  }
+
+  .shelf-plank::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 40px,
+      rgba(0,0,0,0.08) 40px,
+      rgba(0,0,0,0.08) 41px
+    );
+    border-radius: 2px;
+  }
+
+  /* ===== BOOK SPINE ===== */
+  .book {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 3px 6px 6px 3px;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+    flex-shrink: 0;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .book:hover {
+    transform: translateY(-12px) scale(1.03);
+    z-index: 10;
+  }
+
+  .book::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 5px;
+    height: 100%;
+    background: rgba(0,0,0,0.3);
+    border-radius: 3px 0 0 3px;
+  }
+
+  .book::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: rgba(255,255,255,0.1);
+  }
+
+  .book-inner {
+    padding: 10px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    width: 100%;
+  }
+
+  .book-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.95);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    max-height: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+    letter-spacing: 0.05em;
+  }
+
+  .book-tag-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.6);
+    flex-shrink: 0;
+    margin-top: auto;
+  }
+
+  /* ===== MODAL BASE ===== */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: var(--modal-bg);
+    backdrop-filter: blur(6px);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .modal-backdrop.active { display: flex; }
+
+  .modal {
+    background: linear-gradient(135deg, #1e1208, #2a1a0a);
+    border: 1px solid var(--shelf);
+    border-radius: 16px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.8), 0 0 40px var(--accent-glow);
+    width: 100%;
+    max-width: 520px;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(122,79,44,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.4rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  .modal-close:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+
+  .modal-body { padding: 20px; }
+
+  .form-group { margin-bottom: 16px; }
+
+  .form-label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--input-bg);
+    border: 1px solid rgba(122,79,44,0.4);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .form-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  /* Tag input area */
+  .tag-input-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px;
+    background: var(--input-bg);
+    border: 1px solid rgba(122,79,44,0.4);
+    border-radius: 8px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.95);
+  }
+
+  .tag-chip-remove {
+    background: none;
+    border: none;
+    color: inherit;
+    opacity: 0.7;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+  }
+
+  .tag-chip-remove:hover { opacity: 1; }
+
+  .tag-add-input {
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 0.85rem;
+    outline: none;
+    min-width: 100px;
+    flex: 1;
+  }
+
+  .tag-add-input::placeholder { color: var(--text-dim); }
+
+  .tag-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .tag-suggestion {
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tag-suggestion:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+
+  .modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(122,79,44,0.3);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .btn-danger {
+    background: rgba(220,50,50,0.15);
+    color: #ff7070;
+    border: 1px solid rgba(220,50,50,0.3);
+  }
+
+  .btn-danger:hover { background: rgba(220,50,50,0.3); }
+
+  /* ===== PDF VIEWER MODAL ===== */
+  .pdf-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    display: none;
+    flex-direction: column;
+    background: #0d0804;
+  }
+
+  .pdf-modal.active { display: flex; }
+
+  .pdf-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: #1a1008;
+    border-bottom: 1px solid var(--shelf);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .pdf-title {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 1rem;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pdf-frame-wrap {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .pdf-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+  }
+
+  /* ===== CONTEXT MENU ===== */
+  .context-menu {
+    position: fixed;
+    z-index: 500;
+    background: #2a1a0a;
+    border: 1px solid var(--shelf);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+    display: none;
+    min-width: 160px;
+  }
+
+  .context-menu.active { display: block; }
+
+  .context-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .context-item:hover { background: rgba(212,160,84,0.15); }
+  .context-item.danger { color: #ff7070; }
+  .context-item.danger:hover { background: rgba(220,50,50,0.15); }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #1a1008; }
+  ::-webkit-scrollbar-thumb { background: var(--shelf); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--shelf-top); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 600px) {
+    .header-title { font-size: 1.2rem; }
+    .search-wrap { max-width: none; }
+    .shelf-books { min-height: 140px; }
+  }
+
+  /* ===== TOAST ===== */
+  .toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 600;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  .toast {
+    padding: 12px 20px;
+    background: #2d1a08;
+    border: 1px solid var(--shelf);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 0.9rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    animation: slideIn 0.3s ease, fadeOut 0.4s 2.6s ease forwards;
+  }
+
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-top">
+    <div class="header-title">📚 シナリオ本棚</div>
+    <div class="search-wrap">
+      <svg width="16" height="16" fill="none" stroke="#a08060" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input class="search-input" type="text" id="searchInput" placeholder="タイトルで検索..." autocomplete="off">
+    </div>
+    <button class="btn btn-primary" id="addPdfBtn">＋ PDF追加</button>
+    <input type="file" id="fileInput" accept=".pdf" multiple style="display:none">
+  </div>
+  <div class="header-tags" id="tagFilters">
+    <span style="font-size:0.8rem;color:var(--text-dim);">タグ:</span>
+    <button class="tag-filter active" data-tag="all" onclick="filterByTag('all', this)">すべて</button>
+  </div>
+</header>
+
+<!-- DROP OVERLAY -->
+<div class="drop-overlay" id="dropOverlay">
+  <div class="drop-overlay-icon">📄</div>
+  <div class="drop-overlay-text">PDFをドロップして追加</div>
+</div>
+
+<!-- MAIN SHELF -->
+<main class="shelf-area">
+  <div class="shelf-stats" id="shelfStats"></div>
+  <div id="shelfContainer"></div>
+  <div class="shelf-empty" id="emptyState" style="display:none">
+    <div class="shelf-empty-icon">📚</div>
+    <div class="shelf-empty-title">本棚が空です</div>
+    <div class="shelf-empty-sub">PDFをドラッグ&ドロップするか、「PDF追加」ボタンで追加してください</div>
+  </div>
+</main>
+
+<!-- ADD/EDIT BOOK MODAL -->
+<div class="modal-backdrop" id="bookModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="bookModalTitle">📖 シナリオを追加</div>
+      <button class="modal-close" onclick="closeBookModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">タイトル</label>
+        <input class="form-input" type="text" id="bookTitle" placeholder="シナリオ名を入力...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">タグ（Enterで追加）</label>
+        <div class="tag-input-wrap" id="tagInputWrap">
+          <input class="tag-add-input" id="tagAddInput" type="text" placeholder="タグを入力...">
+        </div>
+        <div class="tag-suggestions" id="tagSuggestions"></div>
+      </div>
+    </div>
+    <div class="modal-footer" id="bookModalFooter">
+      <button class="btn btn-ghost" onclick="closeBookModal()">キャンセル</button>
+      <button class="btn btn-primary" id="bookModalSave" onclick="saveBook()">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF VIEWER -->
+<div class="pdf-modal" id="pdfModal">
+  <div class="pdf-toolbar">
+    <button class="btn btn-ghost" onclick="closePdfViewer()">← 戻る</button>
+    <div class="pdf-title" id="pdfViewerTitle"></div>
+    <button class="btn btn-ghost" onclick="editCurrentBook()">✏️ 編集</button>
+  </div>
+  <div class="pdf-frame-wrap">
+    <iframe class="pdf-frame" id="pdfFrame" title="PDF Viewer"></iframe>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div class="context-menu" id="contextMenu">
+  <div class="context-item" onclick="ctxView()">👁️ 開く</div>
+  <div class="context-item" onclick="ctxEdit()">✏️ 編集</div>
+  <div class="context-item danger" onclick="ctxDelete()">🗑️ 削除</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ===== TAG COLOR PALETTE =====
+const TAG_COLORS = {
+  'TRPG':     '#7B61FF',
+  'CoC':      '#2E86AB',
+  'クトゥルフ': '#1a6985',
+  'オリジナル': '#A23B72',
+  'ホラー':   '#C73E1D',
+  'ファンタジー': '#2D6A4F',
+  'SF':       '#4361EE',
+  '現代':     '#6B705C',
+  'D&D':      '#8B1A1A',
+  'SW':       '#B5451B',
+  '短編':     '#6C757D',
+  '長編':     '#343A40',
+};
+
+const COLOR_POOL = [
+  '#5C4E9B','#2C7873','#A05040','#3D6B5B','#7A4E2D',
+  '#4A6F8A','#6B4A7A','#7A6B2D','#3D5A7A','#6B3D4A'
+];
+
+function tagColor(tag) {
+  if (TAG_COLORS[tag]) return TAG_COLORS[tag];
+  let hash = 0;
+  for (let c of tag) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+  return COLOR_POOL[hash % COLOR_POOL.length];
+}
+
+// ===== STATE =====
+let books = [];
+let currentFilter = 'all';
+let searchQuery = '';
+let editingId = null;
+let pendingPdfFile = null;
+let pdfBlobUrl = null;
+let ctxBookId = null;
+let currentViewId = null;
+
+// ===== INDEXEDDB =====
+let db;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('ScenarioShelf', 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('pdfs')) {
+        d.createObjectStore('pdfs', { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(); };
+    req.onerror = e => reject(e);
+  });
+}
+
+function savePdfToDB(id, arrayBuffer) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pdfs', 'readwrite');
+    tx.objectStore('pdfs').put({ id, data: arrayBuffer });
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+
+function getPdfFromDB(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pdfs', 'readonly');
+    const req = tx.objectStore('pdfs').get(id);
+    req.onsuccess = e => resolve(e.target.result?.data);
+    req.onerror = reject;
+  });
+}
+
+function deletePdfFromDB(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pdfs', 'readwrite');
+    tx.objectStore('pdfs').delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = reject;
+  });
+}
+
+// ===== LOCALSTORAGE =====
+function loadBooks() {
+  try { books = JSON.parse(localStorage.getItem('scenarioShelf_books') || '[]'); }
+  catch { books = []; }
+}
+
+function saveBooks() {
+  localStorage.setItem('scenarioShelf_books', JSON.stringify(books));
+}
+
+// ===== UUID =====
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+// ===== RENDER =====
+function getAllTags() {
+  const set = new Set();
+  books.forEach(b => b.tags.forEach(t => set.add(t)));
+  return [...set].sort();
+}
+
+function renderTagFilters() {
+  const tags = getAllTags();
+  const wrap = document.getElementById('tagFilters');
+  const allBtn = wrap.querySelector('[data-tag="all"]');
+  // Remove old tag buttons
+  [...wrap.querySelectorAll('[data-tag]:not([data-tag="all"])')].forEach(el => el.remove());
+
+  tags.forEach(tag => {
+    const btn = document.createElement('button');
+    btn.className = 'tag-filter' + (currentFilter === tag ? ' active' : '');
+    btn.dataset.tag = tag;
+    const count = books.filter(b => b.tags.includes(tag)).length;
+    btn.innerHTML = `<span style="color:${tagColor(tag)};margin-right:4px;">●</span>${tag}<span class="tag-count">${count}</span>`;
+    btn.onclick = () => filterByTag(tag, btn);
+    wrap.appendChild(btn);
+  });
+
+  allBtn.className = 'tag-filter' + (currentFilter === 'all' ? ' active' : '');
+  const allCount = books.length;
+  allBtn.innerHTML = `すべて<span class="tag-count">${allCount}</span>`;
+}
+
+function filteredBooks() {
+  let list = books;
+  if (currentFilter !== 'all') list = list.filter(b => b.tags.includes(currentFilter));
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    list = list.filter(b => b.title.toLowerCase().includes(q));
+  }
+  return list;
+}
+
+function renderShelf() {
+  renderTagFilters();
+  const container = document.getElementById('shelfContainer');
+  const emptyState = document.getElementById('emptyState');
+  const stats = document.getElementById('shelfStats');
+  const list = filteredBooks();
+
+  if (books.length === 0) {
+    container.innerHTML = '';
+    emptyState.style.display = 'flex';
+    stats.textContent = '';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  stats.textContent = `${list.length}冊 / 全${books.length}冊`;
+
+  if (list.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:60px 0;">該当するシナリオがありません</div>';
+    return;
+  }
+
+  // Group into rows of ~12 books
+  const BOOKS_PER_ROW = 12;
+  const rows = [];
+  for (let i = 0; i < list.length; i += BOOKS_PER_ROW) {
+    rows.push(list.slice(i, i + BOOKS_PER_ROW));
+  }
+
+  container.innerHTML = rows.map(row => `
+    <div class="shelf-row">
+      <div class="shelf-books">
+        ${row.map(b => renderBook(b)).join('')}
+      </div>
+      <div class="shelf-plank"></div>
+    </div>
+  `).join('');
+
+  // Attach events
+  container.querySelectorAll('.book').forEach(el => {
+    const id = el.dataset.id;
+    el.addEventListener('click', () => openBook(id));
+    el.addEventListener('contextmenu', e => { e.preventDefault(); showContextMenu(e, id); });
+  });
+}
+
+function renderBook(book) {
+  const color = book.tags.length > 0 ? tagColor(book.tags[0]) : '#5C4E9B';
+  const titleLen = book.title.length;
+  const height = Math.min(180, Math.max(130, 120 + titleLen * 1.2));
+  const width = Math.floor(Math.random() * 14) + 28;
+
+  const lighterColor = lightenColor(color, 0.15);
+
+  return `
+    <div class="book" data-id="${book.id}"
+      style="
+        height:${height}px;
+        width:${width}px;
+        background:linear-gradient(135deg, ${color} 0%, ${lighterColor} 60%, ${color} 100%);
+        box-shadow:3px 3px 10px rgba(0,0,0,0.5),inset 1px 0 rgba(255,255,255,0.1);
+      ">
+      <div class="book-inner">
+        <span class="book-title">${escHtml(book.title)}</span>
+        ${book.tags.length > 1 ? `<span class="book-tag-dot" style="background:${tagColor(book.tags[1])}"></span>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function lightenColor(hex, amount) {
+  const num = parseInt(hex.replace('#',''), 16);
+  const r = Math.min(255, (num >> 16) + Math.round(255 * amount));
+  const g = Math.min(255, ((num >> 8) & 0xff) + Math.round(255 * amount));
+  const b = Math.min(255, (num & 0xff) + Math.round(255 * amount));
+  return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ===== FILTER / SEARCH =====
+function filterByTag(tag, btn) {
+  currentFilter = tag;
+  document.querySelectorAll('.tag-filter').forEach(el => el.classList.remove('active'));
+  btn.classList.add('active');
+  renderShelf();
+}
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchQuery = e.target.value.trim();
+  renderShelf();
+});
+
+// ===== FILE INPUT =====
+document.getElementById('addPdfBtn').onclick = () => document.getElementById('fileInput').click();
+document.getElementById('fileInput').addEventListener('change', e => {
+  handleFiles([...e.target.files]);
+  e.target.value = '';
+});
+
+// ===== DRAG & DROP =====
+let dragCounter = 0;
+
+document.addEventListener('dragenter', e => {
+  if ([...e.dataTransfer.types].includes('Files')) {
+    dragCounter++;
+    document.getElementById('dropOverlay').classList.add('active');
+  }
+});
+
+document.addEventListener('dragleave', () => {
+  dragCounter--;
+  if (dragCounter <= 0) {
+    dragCounter = 0;
+    document.getElementById('dropOverlay').classList.remove('active');
+  }
+});
+
+document.addEventListener('dragover', e => e.preventDefault());
+
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  dragCounter = 0;
+  document.getElementById('dropOverlay').classList.remove('active');
+  const files = [...e.dataTransfer.files].filter(f => f.type === 'application/pdf');
+  if (files.length === 0) { toast('PDFファイルのみ対応しています'); return; }
+  handleFiles(files);
+});
+
+// ===== HANDLE FILES =====
+async function handleFiles(files) {
+  for (const file of files) {
+    if (file.type !== 'application/pdf') continue;
+    const nameNoExt = file.name.replace(/\.pdf$/i, '');
+    pendingPdfFile = file;
+    openBookModal(null, nameNoExt);
+    // Only handle one at a time via modal; for multiple we queue
+    break; // simplified: open modal for first, rest ignored
+  }
+  if (files.length > 1) toast(`${files.length}ファイルのうち最初の1つを処理します`);
+}
+
+// ===== BOOK MODAL =====
+let currentTagsInModal = [];
+
+function openBookModal(bookId, defaultTitle = '') {
+  editingId = bookId;
+  currentTagsInModal = [];
+
+  if (bookId) {
+    const book = books.find(b => b.id === bookId);
+    document.getElementById('bookModalTitle').textContent = '✏️ 編集';
+    document.getElementById('bookTitle').value = book.title;
+    currentTagsInModal = [...book.tags];
+    document.getElementById('bookModalSave').textContent = '保存';
+    document.getElementById('bookModalFooter').innerHTML = `
+      <button class="btn btn-danger" onclick="deleteBook('${bookId}')">削除</button>
+      <button class="btn btn-ghost" onclick="closeBookModal()">キャンセル</button>
+      <button class="btn btn-primary" id="bookModalSave" onclick="saveBook()">保存</button>
+    `;
+    pendingPdfFile = null;
+  } else {
+    document.getElementById('bookModalTitle').textContent = '📖 シナリオを追加';
+    document.getElementById('bookTitle').value = defaultTitle;
+    document.getElementById('bookModalSave').textContent = '追加';
+    document.getElementById('bookModalFooter').innerHTML = `
+      <button class="btn btn-ghost" onclick="closeBookModal()">キャンセル</button>
+      <button class="btn btn-primary" id="bookModalSave" onclick="saveBook()">追加</button>
+    `;
+  }
+
+  renderTagsInModal();
+  renderTagSuggestions();
+  document.getElementById('bookModal').classList.add('active');
+  setTimeout(() => document.getElementById('bookTitle').focus(), 50);
+}
+
+function closeBookModal() {
+  document.getElementById('bookModal').classList.remove('active');
+  pendingPdfFile = null;
+  editingId = null;
+}
+
+function renderTagsInModal() {
+  const wrap = document.getElementById('tagInputWrap');
+  const input = document.getElementById('tagAddInput');
+  wrap.innerHTML = '';
+  currentTagsInModal.forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.style.background = tagColor(tag);
+    chip.innerHTML = `${escHtml(tag)}<button class="tag-chip-remove" onclick="removeTagFromModal('${escHtml(tag)}')">×</button>`;
+    wrap.appendChild(chip);
+  });
+  wrap.appendChild(input);
+}
+
+function removeTagFromModal(tag) {
+  currentTagsInModal = currentTagsInModal.filter(t => t !== tag);
+  renderTagsInModal();
+}
+
+function renderTagSuggestions() {
+  const suggestions = document.getElementById('tagSuggestions');
+  const allTags = ['TRPG','CoC','クトゥルフ','オリジナル','ホラー','ファンタジー','SF','現代','D&D','SW','短編','長編'];
+  suggestions.innerHTML = allTags.map(t =>
+    `<button class="tag-suggestion" onclick="addTagToModal('${escHtml(t)}')" style="color:${tagColor(t)};border-color:${tagColor(t)}40">${t}</button>`
+  ).join('');
+}
+
+function addTagToModal(tag) {
+  if (!tag.trim() || currentTagsInModal.includes(tag)) return;
+  currentTagsInModal.push(tag);
+  renderTagsInModal();
+  document.getElementById('tagAddInput').value = '';
+  document.getElementById('tagAddInput').focus();
+}
+
+document.getElementById('tagAddInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = e.target.value.trim().replace(/,$/, '');
+    if (val) addTagToModal(val);
+  }
+});
+
+async function saveBook() {
+  const title = document.getElementById('bookTitle').value.trim();
+  if (!title) { toast('タイトルを入力してください'); return; }
+
+  if (editingId) {
+    const book = books.find(b => b.id === editingId);
+    book.title = title;
+    book.tags = [...currentTagsInModal];
+    saveBooks();
+    toast('シナリオを更新しました');
+  } else {
+    if (!pendingPdfFile) { toast('PDFファイルが見つかりません'); return; }
+    const id = genId();
+    try {
+      const buf = await pendingPdfFile.arrayBuffer();
+      await savePdfToDB(id, buf);
+      books.push({ id, title, tags: [...currentTagsInModal], addedAt: Date.now() });
+      saveBooks();
+      toast(`「${title}」を追加しました`);
+    } catch (err) {
+      toast('保存に失敗しました: ' + err.message);
+      return;
+    }
+  }
+
+  closeBookModal();
+  renderShelf();
+}
+
+// ===== DELETE =====
+async function deleteBook(id) {
+  const book = books.find(b => b.id === id);
+  if (!confirm(`「${book.title}」を削除しますか？`)) return;
+  books = books.filter(b => b.id !== id);
+  saveBooks();
+  await deletePdfFromDB(id);
+  closeBookModal();
+  closeContextMenu();
+  renderShelf();
+  toast('削除しました');
+}
+
+// ===== PDF VIEWER =====
+async function openBook(id) {
+  const book = books.find(b => b.id === id);
+  if (!book) return;
+  currentViewId = id;
+
+  document.getElementById('pdfViewerTitle').textContent = book.title;
+  document.getElementById('pdfModal').classList.add('active');
+  document.getElementById('pdfFrame').src = '';
+
+  try {
+    const buf = await getPdfFromDB(id);
+    if (!buf) { toast('PDFデータが見つかりません'); return; }
+    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    const blob = new Blob([buf], { type: 'application/pdf' });
+    pdfBlobUrl = URL.createObjectURL(blob);
+    document.getElementById('pdfFrame').src = pdfBlobUrl + '#toolbar=1&navpanes=1';
+  } catch (err) {
+    toast('PDFの読み込みに失敗しました');
+  }
+}
+
+function closePdfViewer() {
+  document.getElementById('pdfModal').classList.remove('active');
+  document.getElementById('pdfFrame').src = '';
+  if (pdfBlobUrl) { URL.revokeObjectURL(pdfBlobUrl); pdfBlobUrl = null; }
+  currentViewId = null;
+}
+
+function editCurrentBook() {
+  if (currentViewId) {
+    closePdfViewer();
+    openBookModal(currentViewId);
+  }
+}
+
+// ===== CONTEXT MENU =====
+function showContextMenu(e, id) {
+  ctxBookId = id;
+  const menu = document.getElementById('contextMenu');
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 120) + 'px';
+  menu.classList.add('active');
+}
+
+function closeContextMenu() {
+  document.getElementById('contextMenu').classList.remove('active');
+  ctxBookId = null;
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#contextMenu')) closeContextMenu();
+});
+
+function ctxView() { openBook(ctxBookId); closeContextMenu(); }
+function ctxEdit() { openBookModal(ctxBookId); closeContextMenu(); }
+function ctxDelete() { deleteBook(ctxBookId); }
+
+// ===== TOAST =====
+function toast(msg) {
+  const c = document.getElementById('toastContainer');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('pdfModal').classList.contains('active')) {
+      closePdfViewer();
+    } else if (document.getElementById('bookModal').classList.contains('active')) {
+      closeBookModal();
+    }
+    closeContextMenu();
+  }
+});
+
+// ===== INIT =====
+async function init() {
+  loadBooks();
+  await openDB();
+  renderShelf();
+}
+
+init();
+</script>
+</body>
+</html>
